@@ -152,7 +152,15 @@ Theorem skip_right : forall c,
     <{ c ; skip }>
     c.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros c st st'.
+  split; intros H.
+  - inversion H. subst.
+    inversion H5. subst.
+    assumption.
+  - apply E_Seq with st'.
+    assumption.
+    apply E_Skip.
+Qed.
 (** [] *)
 
 (** Similarly, here is a simple transformation that optimizes [if]
@@ -240,7 +248,15 @@ Theorem if_false : forall b c1 c2,
     <{ if b then c1 else c2 end }>
     c2.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros b c1 c2 Hb.
+  split; intros H.
+  - inversion H; subst; try assumption.
+    unfold bequiv in Hb. simpl in Hb.
+    rewrite Hb in H5. discriminate.
+  - apply E_IfFalse; try assumption.
+    unfold bequiv in Hb. simpl in Hb.
+    rewrite Hb. reflexivity.
+Qed.
 (** [] *)
 
 (** **** Exercise: 3 stars, standard (swap_if_branches)
@@ -248,12 +264,36 @@ Proof.
     Show that we can swap the branches of an [if] if we also negate its
     guard. *)
 
+Lemma beval_neg : forall st b, 
+  negb (beval st b) = beval st <{ ~ b }>.
+Proof.
+  intros st b. destruct (beval st b) eqn:H.
+  - simpl. rewrite H. reflexivity.
+  - simpl. rewrite H. reflexivity.
+Qed.
+
 Theorem swap_if_branches : forall b c1 c2,
   cequiv
     <{ if b then c1 else c2 end }>
     <{ if ~ b then c2 else c1 end }>.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros b c1 c2.
+  split; intros H.
+  - inversion H; subst.
+    + apply E_IfFalse; try assumption.
+      rewrite <- beval_neg. rewrite H5. reflexivity.
+    + apply E_IfTrue; try assumption.
+      rewrite <- beval_neg. rewrite H5. reflexivity.
+  - inversion H; subst.
+    + apply E_IfFalse; try assumption.
+      rewrite <- beval_neg in H5. 
+      symmetry in H5. apply negb_sym in H5.
+      simpl in H5. assumption.
+    + apply E_IfTrue; try assumption.
+      rewrite <- beval_neg in H5.
+      symmetry in H5. apply negb_sym in H5.
+      simpl in H5. assumption.
+Qed.
 (** [] *)
 
 (** For [while] loops, we can give a similar pair of theorems.  A loop
@@ -355,7 +395,12 @@ Theorem while_true : forall b c,
     <{ while b do c end }>
     <{ while true do skip end }>.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros b c Hb; split; intros H.
+  - destruct (while_true_nonterm b c st st' Hb H). 
+  - assert (Htrue : bequiv <{true}> <{ true }>).
+    { unfold bequiv. intros. reflexivity. }
+    destruct (while_true_nonterm <{ true }> <{ skip }> st st' Htrue H).
+Qed.
 (** [] *)
 
 (** A more interesting fact about [while] commands is that any number
@@ -391,7 +436,15 @@ Proof.
 Theorem seq_assoc : forall c1 c2 c3,
   cequiv <{(c1;c2);c3}> <{c1;(c2;c3)}>.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros c1 c2 c3. split; intros H.
+  - inversion H; subst. inversion H2; subst.
+    apply E_Seq with (st' := st'1). assumption.
+    apply E_Seq with (st' := st'0); assumption.
+  - inversion H; subst. inversion H5; subst.
+    apply E_Seq with (st' := st'1). 
+    apply E_Seq with (st' := st'0).
+    assumption. assumption. assumption.
+Qed.
 (** [] *)
 
 (** Proving program properties involving assignments is one place
@@ -421,7 +474,16 @@ Theorem assign_aequiv : forall (x : string) a,
   aequiv x a ->
   cequiv <{ skip }> <{ x := a }>.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros x a Hxa. split; intros H; inversion H; subst.
+  - assert (Hx : st' =[ x := a ]=> (x !-> aeval st' a ; st')).
+    { apply E_Asgn. reflexivity. }
+    rewrite <- Hxa in Hx. simpl in Hx.
+    rewrite t_update_same in Hx.
+    assumption.
+  - rewrite <- Hxa. simpl.
+    rewrite t_update_same.
+    apply E_Skip.
+Qed.
 (** [] *)
 
 (** **** Exercise: 2 stars, standard (equiv_classes) *)
