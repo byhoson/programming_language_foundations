@@ -737,7 +737,24 @@ Theorem CSeq_congruence : forall c1 c1' c2 c2',
   cequiv c1 c1' -> cequiv c2 c2' ->
   cequiv <{ c1;c2 }> <{ c1';c2' }>.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  assert (A : forall c1 c1' c2 c2' st st',
+              cequiv c1 c1' -> cequiv c2 c2' ->
+              st =[ c1;c2 ]=> st' -> st =[ c1';c2' ]=> st').
+    intros c1 c1' c2 c2' st st' Hc1e Hc2e Hcev.
+    unfold cequiv in Hc1e. unfold cequiv in Hc2e.
+    inversion Hcev; subst. apply E_Seq with (st' := st'0).
+    rewrite <- Hc1e. assumption.
+    rewrite <- Hc2e. assumption.
+  
+  intros. split.
+  - apply A. assumption. assumption.
+  - apply A. split.
+    + intros. unfold cequiv in H. rewrite H. assumption.
+    + intros. unfold cequiv in H. rewrite <- H. assumption.
+    + split.
+      * intros. unfold cequiv in H0. rewrite H0. assumption.
+      * intros. unfold cequiv in H0. rewrite <- H0. assumption.
+Qed.
 (** [] *)
 
 (** **** Exercise: 3 stars, standard (CIf_congruence) *)
@@ -746,7 +763,25 @@ Theorem CIf_congruence : forall b b' c1 c1' c2 c2',
   cequiv <{ if b then c1 else c2 end }>
          <{ if b' then c1' else c2' end }>.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  assert (A : forall b b' c1 c1' c2 c2' st st',
+          bequiv b b' -> cequiv c1 c1' -> cequiv c2 c2' ->
+          st =[ if b then c1 else c2 end ]=> st' ->
+          st =[ if b' then c1' else c2' end ]=> st').
+  { intros b b' c1 c1' c2 c2' st st' Hbe Hc1e Hc2e Hcev.
+    inversion Hcev; subst.
+    - unfold bequiv in *. unfold cequiv in *.
+      apply E_IfTrue. rewrite <- Hbe. assumption.
+      rewrite <- Hc1e. assumption.
+    - unfold bequiv in *. unfold cequiv in *.
+      apply E_IfFalse. rewrite <- Hbe. assumption.
+      rewrite <- Hc2e. assumption. }
+  
+  intros. split.
+  - apply A; assumption.
+  - apply A. apply sym_bequiv. assumption.
+    apply sym_cequiv. assumption.
+    apply sym_cequiv. assumption.
+Qed.
 (** [] *)
 
 (** For example, here are two equivalent programs and a proof of their
@@ -1102,7 +1137,17 @@ Proof.
        become constants after folding *)
       simpl. destruct (n =? n0); reflexivity.
   - (* BLe *)
-    (* FILL IN HERE *) admit.
+    simpl.
+    remember (fold_constants_aexp a1) as a1' eqn:Heqa1'.
+    remember (fold_constants_aexp a2) as a2' eqn:Heqa2'.
+    replace (aeval st a1) with (aeval st a1') by
+       (subst a1'; rewrite <- fold_constants_aexp_sound; reflexivity).
+    replace (aeval st a2) with (aeval st a2') by
+       (subst a2'; rewrite <- fold_constants_aexp_sound; reflexivity).
+    destruct a1'; destruct a2'; try reflexivity.
+    (* The only interesting case is when both a1 and a2
+       become constants after folding *)
+      simpl. destruct (n <=? n0); reflexivity.
   - (* BNot *)
     simpl. remember (fold_constants_bexp b) as b' eqn:Heqb'.
     rewrite IHb.
@@ -1113,7 +1158,7 @@ Proof.
     remember (fold_constants_bexp b2) as b2' eqn:Heqb2'.
     rewrite IHb1. rewrite IHb2.
     destruct b1'; destruct b2'; reflexivity.
-(* FILL IN HERE *) Admitted.
+Qed.
 (** [] *)
 
 (** **** Exercise: 3 stars, standard (fold_constants_com_sound)
@@ -1144,7 +1189,16 @@ Proof.
       apply trans_cequiv with c2; try assumption.
       apply if_false; assumption.
   - (* while *)
-    (* FILL IN HERE *) Admitted.
+    destruct (fold_constants_bexp b) eqn:Heqb;
+      try (apply CWhile_congruence; try (rewrite <- Heqb;
+           apply fold_constants_bexp_sound); assumption).
+    + (* b always true *)
+      apply while_true. rewrite <- Heqb.
+      apply fold_constants_bexp_sound.
+    + (* b always false *)
+      apply while_false. rewrite <- Heqb.
+      apply fold_constants_bexp_sound.
+Qed.
 (** [] *)
 
 (* ----------------------------------------------------------------- *)
